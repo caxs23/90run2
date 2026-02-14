@@ -258,9 +258,9 @@
             transform: translateX(-50%);
         }
 
-        /* 주인공 말풍선 위치 수정: 캐릭터 위쪽으로 배치 */
+        /* 주인공 말풍선 위치 조정: 기존 -20px에서 아래로 약 1.5칸 정도 내림 */
         .player-bubble {
-            top: -20px; 
+            top: 40px; 
             left: 50%;
             transform: translateX(-50%);
             border-color: #ff6b6b;
@@ -482,7 +482,6 @@
                 this.worldEl = document.getElementById('world');
                 this.player.el = document.getElementById('player');
                 
-                // 로딩 리스트 작성
                 this.prepareAssetList();
                 this.loadAllAssets();
 
@@ -501,7 +500,6 @@
             },
 
             prepareAssetList() {
-                // 이미지 모으기
                 this.assetsToLoad.push({ type: 'img', url: ASSETS.run });
                 ASSETS.dodgeLeft.forEach(u => this.assetsToLoad.push({ type: 'img', url: u }));
                 ASSETS.dodgeRight.forEach(u => this.assetsToLoad.push({ type: 'img', url: u }));
@@ -509,7 +507,6 @@
                 Object.values(ASSETS.npc).forEach(list => {
                     list.forEach(u => this.assetsToLoad.push({ type: 'img', url: u }));
                 });
-                // 사운드 모으기
                 ASSETS.dodgeSounds.forEach(u => this.assetsToLoad.push({ type: 'audio', url: u }));
             },
 
@@ -570,7 +567,6 @@
                 let selectedAudioObj;
                 const dodge4Url = toRaw('https://github.com/caxs23/90run/blob/main/dodge%20(4).mp3');
                 
-                // 10% 확률로 dodge(4).mp3 선택 시도
                 if (Math.random() < 0.1) {
                     selectedAudioObj = this.audioCache.find(obj => obj.url === dodge4Url);
                 }
@@ -970,23 +966,7 @@
                 
                 this.playRandomDodgeSound();
 
-                let closestEnemy = null;
-                let maxProgress = -1;
-
-                this.enemies.forEach(enemy => {
-                    if (enemy.progress > maxProgress) {
-                        maxProgress = enemy.progress;
-                        closestEnemy = enemy;
-                    }
-                });
-
-                const shouldBeInvincible = !(closestEnemy && closestEnemy.side === direction);
-
-                if (shouldBeInvincible) {
-                    this.setInvincible(true, 5000, false);
-                } else {
-                    this.setInvincible(false, 0, false);
-                }
+                this.setInvincible(true, 5000, false);
 
                 if (!this.player.isBubbleActive && Math.random() < 0.1) {
                     const messages = ["슉!", "슈슉!", "슈슉슉!", "훗!"];
