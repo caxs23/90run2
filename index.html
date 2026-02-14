@@ -258,8 +258,9 @@
             transform: translateX(-50%);
         }
 
+        /* 주인공 말풍선 위치 수정: 캐릭터 위쪽으로 배치 */
         .player-bubble {
-            top: 180px; 
+            top: -20px; 
             left: 50%;
             transform: translateX(-50%);
             border-color: #ff6b6b;
@@ -557,7 +558,7 @@
                 btn.disabled = false;
                 btn.innerText = '도망치기 시작';
                 document.getElementById('loading-container').style.display = 'none';
-                document.getElementById('loading-text').innerText = ''; // "준비 완료!" 메시지 미표시
+                document.getElementById('loading-text').innerText = ''; 
                 
                 this.updatePlayerImage(ASSETS.run);
                 this.setRandomBackground();
@@ -574,13 +575,11 @@
                     selectedAudioObj = this.audioCache.find(obj => obj.url === dodge4Url);
                 }
 
-                // 위 조건에 해당하지 않거나 파일을 못 찾은 경우 나머지 중에서 랜덤 선택
                 if (!selectedAudioObj) {
                     const others = this.audioCache.filter(obj => obj.url !== dodge4Url);
                     if (others.length > 0) {
                         selectedAudioObj = others[Math.floor(Math.random() * others.length)];
                     } else {
-                        // 혹시 리스트에 (4)만 있는 경우를 위한 폴백
                         selectedAudioObj = this.audioCache[Math.floor(Math.random() * this.audioCache.length)];
                     }
                 }
@@ -739,8 +738,6 @@
 
             spawnEnemy() {
                 const types = Object.keys(ASSETS.npc);
-                
-                // 가중치를 통한 타입 선택 (ceo, worker는 확률 50% 감소)
                 const weights = {
                     patient: 1.0,
                     prof: 1.0,
@@ -750,16 +747,14 @@
 
                 let weightedPool = [];
                 types.forEach(type => {
-                    // 직전 적과 겹치지 않게 필터링
                     if (type !== this.lastEnemyType) {
-                        const count = weights[type] * 10; // 정수화를 위해 10 곱함
+                        const count = weights[type] * 10;
                         for (let i = 0; i < count; i++) {
                             weightedPool.push(type);
                         }
                     }
                 });
 
-                // 직전 타입 제외하고 풀이 비었으면(불가능하겠지만) 전체에서 선택
                 if (weightedPool.length === 0) {
                     types.forEach(type => {
                         const count = weights[type] * 10;
@@ -975,7 +970,23 @@
                 
                 this.playRandomDodgeSound();
 
-                this.setInvincible(true, 5000, false);
+                let closestEnemy = null;
+                let maxProgress = -1;
+
+                this.enemies.forEach(enemy => {
+                    if (enemy.progress > maxProgress) {
+                        maxProgress = enemy.progress;
+                        closestEnemy = enemy;
+                    }
+                });
+
+                const shouldBeInvincible = !(closestEnemy && closestEnemy.side === direction);
+
+                if (shouldBeInvincible) {
+                    this.setInvincible(true, 5000, false);
+                } else {
+                    this.setInvincible(false, 0, false);
+                }
 
                 if (!this.player.isBubbleActive && Math.random() < 0.1) {
                     const messages = ["슉!", "슈슉!", "슈슉슉!", "훗!"];
