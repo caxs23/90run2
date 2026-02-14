@@ -88,11 +88,12 @@
         }
 
         #intro-screen h2 {
-            font-size: 1.1rem;
+            font-size: clamp(1rem, 4.5vw, 1.4rem);
             line-height: 1.8;
-            word-break: keep-all;
-            max-width: 80%;
+            word-break: keep-all; /* 단어 단위 줄바꿈 */
+            max-width: 85%;
             font-weight: 400;
+            margin: 0;
         }
 
         h1 {
@@ -233,13 +234,14 @@
             will-change: transform, bottom, opacity;
         }
 
+        /* --- Bubble Improvements --- */
         .bubble {
             position: absolute;
             background: white;
             color: #333;
-            padding: 10px 18px;
+            padding: 8px 16px;
             border-radius: 20px;
-            font-size: 0.9rem;
+            font-size: 0.85rem;
             font-weight: bold;
             box-shadow: 0 4px 15px rgba(0,0,0,0.4);
             opacity: 0;
@@ -247,25 +249,26 @@
             z-index: 150;
             pointer-events: none;
             border: 2px solid #333;
-            max-width: 65vw;
-            white-space: pre-wrap;
+            white-space: nowrap; /* 줄바꿈 방지 */
             text-align: center;
+            width: fit-content; /* 내용물에 너비 맞춤 */
+            min-width: 80px;
         }
 
         .enemy-bubble {
-            top: -80px;
+            top: -60px;
             left: 50%;
             transform: translateX(-50%);
         }
 
         .player-bubble {
-            top: 180px; 
+            top: 150px; 
             left: 50%;
             transform: translateX(-50%);
             border-color: #ff6b6b;
             color: #ff6b6b;
             animation: shake 0.3s ease-in-out;
-            font-size: 1.1rem;
+            font-size: 1rem;
             z-index: 250;
         }
 
@@ -351,7 +354,8 @@
             <h1>대화는<br>너무 부담스러워</h1>
             <div class="subtitle">
                 좌우 스와이프나 방향키를 사용하여<br>
-                다가오는 사람들의 부담스러운 대화를 피하세요!
+                부담스러운 대화를 피하세요!<br>
+                <b>(적과 반대 방향으로 피해야 합니다!)</b>
             </div>
             
             <button id="start-btn" disabled onclick="Game.startIntro()">로딩 중...</button>
@@ -379,7 +383,7 @@
         </div>
 
         <div id="ending-screen" class="ui-layer">
-            <h1 style="color: #43e97b; font-size: 2.2rem;">오늘도 스테이블하게<br>무사히 퇴근했다!</h1>
+            <h1 style="color: #43e97b; font-size: 2.2rem;">무사히 퇴근했다!</h1>
             <div class="subtitle">
                 완벽한 하루였습니다.<br>
                 집에 가서 얼른 침대로 들어가야지!
@@ -435,13 +439,13 @@
 
         const DIALOGUES = {
             patient: ["선생님 저 집에 가고 싶어요.", "심심해요. 놀아줘요.", "안아줘요.", "여긴 왜 담배를 못 펴요?", "배 아픈데 변이 안 나와요.", "마스크 벗어주세요.", "핸드폰 쓰고싶어요."],
-            prof: ["병동은 요즘 어떤가요? 허허.", "새로운 환자를 보내려고 하는데요.", "병동 의견은 어떻습니까?", "수고가 많으시네요.", "회진하다가 한 명 빼먹어서 다시 왔습니다.", "면담은 면담실에서 하겠습니다."],
+            prof: ["병동은 요즘 어떤가요?", "새로운 환자를 보낼까요?", "병동 의견은 어떻습니까?", "수고가 많으시네요.", "회진 빼먹어서 왔습니다.", "면담실에서 하겠습니다."],
             ceo: ["다들 수고가 많습니다.", "이곳이 보호병동이군요.", "여기가 90병동입니까?"],
             worker: ["아-하.", "참치 먹으러 갑시다!", "쭈꾸미 먹으러 갑시다!", "이번에 현대바이오가..", "얼른 하고 쉽시다!"]
         };
 
-        const PLAYER_HURT_DIALOGUES = ["으악 싫어요!", "앗! 부담스러워!", "안돼! 대화당했어!", "살려주세요!", "말 걸지 마세요!"];
-        const PLAYER_IDLE_DIALOGUES = ["불편한 대화는 사절이야!", "오늘도 스테이블!", "얼른 집에 가야지!"];
+        const PLAYER_HURT_DIALOGUES = ["으악 싫어요!", "부담스러워!", "안돼! 대화당했어!", "살려주세요!", "말 걸지 마세요!"];
+        const PLAYER_IDLE_DIALOGUES = ["대화는 사절이야!", "오늘도 스테이블!", "얼른 집에 가야지!"];
 
         const Game = {
             state: 'title',
@@ -462,17 +466,14 @@
             },
             worldEl: null,
             touchStartX: 0,
-            
             lastHurtTime: 0,
             lastEnemyType: null,
             lastEnemyDialogue: {}, 
             lastPlayerHurtDialogue: null,
             lastPlayerIdleDialogue: null,
-
             playStartTime: 0,
             endingBtnShown: false,
             devClickCount: 0,
-
             audioCache: [],
             assetsToLoad: [],
             assetsLoaded: 0,
@@ -480,8 +481,6 @@
             init() {
                 this.worldEl = document.getElementById('world');
                 this.player.el = document.getElementById('player');
-                
-                // 로딩 리스트 작성
                 this.prepareAssetList();
                 this.loadAllAssets();
 
@@ -500,7 +499,6 @@
             },
 
             prepareAssetList() {
-                // 이미지 모으기
                 this.assetsToLoad.push({ type: 'img', url: ASSETS.run });
                 ASSETS.dodgeLeft.forEach(u => this.assetsToLoad.push({ type: 'img', url: u }));
                 ASSETS.dodgeRight.forEach(u => this.assetsToLoad.push({ type: 'img', url: u }));
@@ -508,17 +506,12 @@
                 Object.values(ASSETS.npc).forEach(list => {
                     list.forEach(u => this.assetsToLoad.push({ type: 'img', url: u }));
                 });
-                // 사운드 모으기
                 ASSETS.dodgeSounds.forEach(u => this.assetsToLoad.push({ type: 'audio', url: u }));
             },
 
             loadAllAssets() {
                 const total = this.assetsToLoad.length;
-                if (total === 0) {
-                    this.onAllAssetsLoaded();
-                    return;
-                }
-
+                if (total === 0) return this.onAllAssetsLoaded();
                 this.assetsToLoad.forEach(asset => {
                     if (asset.type === 'img') {
                         const img = new Image();
@@ -527,12 +520,7 @@
                         img.src = asset.url;
                     } else if (asset.type === 'audio') {
                         const audio = new Audio();
-                        audio.oncanplaythrough = () => {
-                            if (!audio.isCounted) {
-                                audio.isCounted = true;
-                                this.assetItemLoaded();
-                            }
-                        };
+                        audio.oncanplaythrough = () => { if (!audio.isCounted) { audio.isCounted = true; this.assetItemLoaded(); } };
                         audio.onerror = () => this.assetItemLoaded();
                         audio.src = asset.url;
                         audio.load();
@@ -546,10 +534,7 @@
                 const percent = Math.floor((this.assetsLoaded / this.assetsToLoad.length) * 100);
                 document.getElementById('loading-bar').style.width = percent + '%';
                 document.getElementById('loading-text').innerText = `리소스 준비 중... (${percent}%)`;
-                
-                if (this.assetsLoaded >= this.assetsToLoad.length) {
-                    this.onAllAssetsLoaded();
-                }
+                if (this.assetsLoaded >= this.assetsToLoad.length) this.onAllAssetsLoaded();
             },
 
             onAllAssetsLoaded() {
@@ -557,37 +542,25 @@
                 btn.disabled = false;
                 btn.innerText = '도망치기 시작';
                 document.getElementById('loading-container').style.display = 'none';
-                document.getElementById('loading-text').innerText = ''; // "준비 완료!" 메시지 미표시
-                
+                document.getElementById('loading-text').innerText = ''; 
                 this.updatePlayerImage(ASSETS.run);
                 this.setRandomBackground();
             },
 
             playRandomDodgeSound() {
                 if (this.audioCache.length === 0) return;
-
-                let selectedAudioObj;
                 const dodge4Url = toRaw('https://github.com/caxs23/90run/blob/main/dodge%20(4).mp3');
-                
-                // 10% 확률로 dodge(4).mp3 선택 시도
-                if (Math.random() < 0.1) {
-                    selectedAudioObj = this.audioCache.find(obj => obj.url === dodge4Url);
-                }
-
-                // 위 조건에 해당하지 않거나 파일을 못 찾은 경우 나머지 중에서 랜덤 선택
-                if (!selectedAudioObj) {
+                let selected;
+                if (Math.random() < 0.1) selected = this.audioCache.find(obj => obj.url === dodge4Url);
+                if (!selected) {
                     const others = this.audioCache.filter(obj => obj.url !== dodge4Url);
-                    if (others.length > 0) {
-                        selectedAudioObj = others[Math.floor(Math.random() * others.length)];
-                    } else {
-                        // 혹시 리스트에 (4)만 있는 경우를 위한 폴백
-                        selectedAudioObj = this.audioCache[Math.floor(Math.random() * this.audioCache.length)];
-                    }
+                    selected = others[Math.floor(Math.random() * others.length)];
                 }
-                
-                const soundClone = selectedAudioObj.audio.cloneNode();
-                soundClone.volume = 0.6;
-                soundClone.play().catch(e => console.log("Audio play blocked."));
+                if (selected) {
+                    const soundClone = selected.audio.cloneNode();
+                    soundClone.volume = 0.6;
+                    soundClone.play().catch(() => {});
+                }
             },
 
             setRandomBackground() {
@@ -601,18 +574,14 @@
             },
 
             startIntro() {
-                const titleScreen = document.getElementById('title-screen');
-                const introScreen = document.getElementById('intro-screen');
-                
-                titleScreen.style.display = 'none';
-                introScreen.style.display = 'flex';
-                
-                setTimeout(() => { introScreen.style.opacity = 1; }, 50);
-                
+                document.getElementById('title-screen').style.display = 'none';
+                const intro = document.getElementById('intro-screen');
+                intro.style.display = 'flex';
+                setTimeout(() => intro.style.opacity = 1, 50);
                 setTimeout(() => {
-                    introScreen.style.opacity = 0;
+                    intro.style.opacity = 0;
                     setTimeout(() => {
-                        introScreen.style.display = 'none';
+                        intro.style.display = 'none';
                         this.startGame();
                     }, 1000);
                 }, 3000);
@@ -623,34 +592,20 @@
                 this.score = 0;
                 this.lives = 3;
                 this.enemies = [];
-                this.spawnInterval = 5000 + Math.random() * 1000;
+                this.spawnInterval = 5000;
                 this.lastHurtTime = performance.now();
                 this.playStartTime = performance.now();
                 this.endingBtnShown = false;
-                this.devClickCount = 0;
-                
-                this.lastEnemyType = null;
-                this.lastEnemyDialogue = {};
-                this.lastPlayerHurtDialogue = null;
-                this.lastPlayerIdleDialogue = null;
-                
                 this.updateScoreUI();
                 this.updateLivesUI();
                 this.setRandomBackground();
-                
                 document.getElementById('hud').style.display = 'flex';
                 document.getElementById('game-over-screen').style.display = 'none';
                 document.getElementById('ending-screen').style.display = 'none';
                 document.getElementById('ending-btn-container').style.display = 'none';
-
                 this.worldEl.innerHTML = '<div id="player"></div>';
                 this.player.el = document.getElementById('player');
-                this.player.el.classList.remove('player-exit');
                 this.updatePlayerImage(ASSETS.run);
-                this.player.isDodging = false;
-                this.player.isBubbleActive = false;
-                this.setInvincible(false, 0, false);
-                
                 this.lastFrameTime = performance.now();
                 requestAnimationFrame((time) => this.gameLoop(time));
             },
@@ -667,14 +622,11 @@
                 this.enemies = [];
             },
 
-            restart() {
-                this.startGame();
-            },
+            restart() { this.startGame(); },
 
             gameOver() {
                 this.state = 'gameover';
                 document.getElementById('hud').style.display = 'none';
-                document.getElementById('ending-btn-container').style.display = 'none';
                 document.getElementById('final-score').innerText = this.score;
                 document.getElementById('game-over-screen').style.display = 'flex';
             },
@@ -682,9 +634,7 @@
             checkDevRoute() {
                 if (this.state !== 'playing') return;
                 this.devClickCount++;
-                if (this.devClickCount >= 5) {
-                    this.showEndingButton();
-                }
+                if (this.devClickCount >= 5) this.showEndingButton();
             },
 
             showEndingButton() {
@@ -697,18 +647,13 @@
                 this.state = 'ending';
                 document.getElementById('ending-btn-container').style.display = 'none';
                 document.getElementById('hud').style.display = 'none';
-                
                 this.enemies.forEach(e => {
                     e.el.style.opacity = '0';
                     setTimeout(() => e.el.remove(), 500);
                 });
                 this.enemies = [];
-
                 this.player.el.classList.add('player-exit');
-
-                setTimeout(() => {
-                    document.getElementById('ending-screen').style.display = 'flex';
-                }, 3000);
+                setTimeout(() => { document.getElementById('ending-screen').style.display = 'flex'; }, 3000);
             },
 
             gameLoop(timestamp) {
@@ -716,21 +661,18 @@
                 const deltaTime = timestamp - this.lastFrameTime;
                 this.lastFrameTime = timestamp;
 
-                if (!this.endingBtnShown && timestamp - this.playStartTime > 120000) {
-                    this.showEndingButton();
-                }
+                if (!this.endingBtnShown && timestamp - this.playStartTime > 120000) this.showEndingButton();
 
-                const timeSinceLastHurt = timestamp - this.lastHurtTime;
-                if (timeSinceLastHurt > 15000) {
+                if (timestamp - this.lastHurtTime > 15000) {
                     this.showPlayerIdleDialogue();
-                    this.lastHurtTime = timestamp; 
+                    this.lastHurtTime = timestamp;
                 }
 
                 this.spawnTimer += deltaTime;
                 if (this.spawnTimer > this.spawnInterval) {
                     this.spawnEnemy();
                     this.spawnTimer = 0;
-                    this.spawnInterval = Math.max(3500, (4000 + Math.random() * 1000) - (this.score * 50));
+                    this.spawnInterval = Math.max(3500, 4500 - (this.score * 50));
                 }
 
                 this.updateEnemies(deltaTime);
@@ -739,73 +681,24 @@
 
             spawnEnemy() {
                 const types = Object.keys(ASSETS.npc);
-                
-                // 가중치를 통한 타입 선택 (ceo, worker는 확률 50% 감소)
-                const weights = {
-                    patient: 1.0,
-                    prof: 1.0,
-                    ceo: 0.5,
-                    worker: 0.5
-                };
-
-                let weightedPool = [];
-                types.forEach(type => {
-                    // 직전 적과 겹치지 않게 필터링
-                    if (type !== this.lastEnemyType) {
-                        const count = weights[type] * 10; // 정수화를 위해 10 곱함
-                        for (let i = 0; i < count; i++) {
-                            weightedPool.push(type);
-                        }
-                    }
-                });
-
-                // 직전 타입 제외하고 풀이 비었으면(불가능하겠지만) 전체에서 선택
-                if (weightedPool.length === 0) {
-                    types.forEach(type => {
-                        const count = weights[type] * 10;
-                        for (let i = 0; i < count; i++) {
-                            weightedPool.push(type);
-                        }
-                    });
-                }
-                
-                const type = weightedPool[Math.floor(Math.random() * weightedPool.length)];
-                this.lastEnemyType = type;
-
+                const type = types[Math.floor(Math.random() * types.length)];
                 const imgUrl = ASSETS.npc[type][Math.floor(Math.random() * ASSETS.npc[type].length)];
                 const side = Math.random() < 0.5 ? 'left' : 'right'; 
-
                 const enemyEl = document.createElement('div');
                 enemyEl.className = 'enemy';
                 enemyEl.style.backgroundImage = `url('${imgUrl}')`;
                 this.worldEl.appendChild(enemyEl);
-
-                const enemy = {
-                    el: enemyEl,
-                    type: type,
-                    side: side, 
-                    progress: 0, 
-                    duration: 5000,
-                    hasSpoken: false,
-                    spawnTime: performance.now(),
-                    collisionStarted: 0
-                };
-                this.enemies.push(enemy);
+                this.enemies.push({ el: enemyEl, type: type, side: side, progress: 0, duration: 5000, hasSpoken: false, spawnTime: performance.now(), collisionStarted: 0 });
             },
 
             updateEnemies(dt) {
                 const now = performance.now();
-                const enemiesToRemove = [];
-
+                const toRemove = [];
                 this.enemies.forEach(enemy => {
                     enemy.progress += dt / enemy.duration;
-
                     const currentY = 45 - (enemy.progress * 80); 
                     const currentScale = 0.5 + (Math.pow(enemy.progress, 2) * 2.0); 
-                    const maxOffset = 60; 
-                    const directionMultiplier = enemy.side === 'left' ? -1 : 1;
-                    const xOffset = (enemy.progress * maxOffset) * directionMultiplier;
-
+                    const xOffset = (enemy.progress * 60) * (enemy.side === 'left' ? -1 : 1);
                     enemy.el.style.bottom = `${currentY}%`;
                     enemy.el.style.transform = `translate(calc(-50% + ${xOffset}vw), 0) scale(${currentScale})`;
                     enemy.el.style.zIndex = Math.floor(enemy.progress * 150);
@@ -815,15 +708,11 @@
                         enemy.hasSpoken = true;
                     }
 
-                    const timeSinceSpawn = now - enemy.spawnTime;
-                    if (timeSinceSpawn > 2000 && enemy.progress < 1.0) {
+                    if (now - enemy.spawnTime > 2000 && enemy.progress < 1.0) {
                         const isSafe = (this.player.isDodging && this.player.dodgeDirection !== enemy.side) || this.player.invincible;
-                        
                         if (!isSafe) {
-                            if (!enemy.collisionStarted) {
-                                enemy.collisionStarted = now;
-                            }
-                            if (now - enemy.collisionStarted > 1000) {
+                            if (!enemy.collisionStarted) enemy.collisionStarted = now;
+                            if (now - enemy.collisionStarted > 800) {
                                 this.handleCollision();
                                 enemy.collisionStarted = now; 
                             }
@@ -833,16 +722,12 @@
                     }
 
                     if (enemy.progress >= 1.1) {
-                        enemiesToRemove.push(enemy);
-                        if(this.state === 'playing') {
-                            this.score++;
-                            this.updateScoreUI();
-                        }
+                        toRemove.push(enemy);
+                        if(this.state === 'playing') { this.score++; this.updateScoreUI(); }
                     }
                 });
-
-                enemiesToRemove.forEach(enemy => {
-                    if (enemy.el && enemy.el.parentNode) enemy.el.parentNode.removeChild(enemy.el);
+                toRemove.forEach(enemy => {
+                    if (enemy.el.parentNode) enemy.el.remove();
                     const idx = this.enemies.indexOf(enemy);
                     if (idx > -1) this.enemies.splice(idx, 1);
                 });
@@ -850,114 +735,58 @@
 
             showDialogue(enemy) {
                 const list = DIALOGUES[enemy.type];
-                let availableTexts = list.filter(t => t !== this.lastEnemyDialogue[enemy.type]);
-                if (availableTexts.length === 0) availableTexts = list;
-                
-                const text = availableTexts[Math.floor(Math.random() * availableTexts.length)];
-                this.lastEnemyDialogue[enemy.type] = text;
-
+                const text = list[Math.floor(Math.random() * list.length)];
                 const bubble = document.createElement('div');
                 bubble.className = 'bubble enemy-bubble';
                 bubble.innerText = text;
                 enemy.el.appendChild(bubble);
-                
                 setTimeout(() => bubble.style.opacity = 1, 50);
-                
-                setTimeout(() => {
-                    bubble.style.opacity = 0;
-                    setTimeout(() => bubble.remove(), 300);
-                }, 3000);
+                setTimeout(() => { bubble.style.opacity = 0; setTimeout(() => bubble.remove(), 300); }, 3000);
             },
 
             handleCollision() {
                 this.lives--;
                 this.updateLivesUI();
-                this.triggerDamageEffect();
+                const overlay = document.getElementById('damage-overlay');
+                overlay.style.opacity = 0.7;
+                setTimeout(() => overlay.style.opacity = 0, 150);
                 this.showPlayerHurtDialogue();
-                this.setInvincible(true, 2000, true); 
-                
+                this.setInvincible(true, 2000);
                 this.lastHurtTime = performance.now();
-
-                if (this.lives <= 0) {
-                    setTimeout(() => this.gameOver(), 800);
-                }
+                if (this.lives <= 0) setTimeout(() => this.gameOver(), 800);
             },
 
             showPlayerHurtDialogue() {
-                let availableTexts = PLAYER_HURT_DIALOGUES.filter(t => t !== this.lastPlayerHurtDialogue);
-                if (availableTexts.length === 0) availableTexts = PLAYER_HURT_DIALOGUES;
-                
-                const text = availableTexts[Math.floor(Math.random() * availableTexts.length)];
-                this.lastPlayerHurtDialogue = text;
+                const text = PLAYER_HURT_DIALOGUES[Math.floor(Math.random() * PLAYER_HURT_DIALOGUES.length)];
                 this.showPlayerBubble(text, true);
             },
 
             showPlayerIdleDialogue() {
-                let availableTexts = PLAYER_IDLE_DIALOGUES.filter(t => t !== this.lastPlayerIdleDialogue);
-                if (availableTexts.length === 0) availableTexts = PLAYER_IDLE_DIALOGUES;
-
-                const text = availableTexts[Math.floor(Math.random() * availableTexts.length)];
-                this.lastPlayerIdleDialogue = text;
+                const text = PLAYER_IDLE_DIALOGUES[Math.floor(Math.random() * PLAYER_IDLE_DIALOGUES.length)];
                 this.showPlayerBubble(text, false);
             },
 
             showPlayerBubble(text, isDamage = true) {
                 if (!this.player.el) return;
-                
                 const old = this.player.el.querySelector('.player-bubble');
                 if (old) old.remove();
-
                 this.player.isBubbleActive = true;
-
                 const bubble = document.createElement('div');
                 bubble.className = 'bubble player-bubble';
-                if (!isDamage) {
-                    bubble.style.borderColor = '#4a90e2';
-                    bubble.style.color = '#4a90e2';
-                    bubble.style.animation = 'none';
-                }
+                if (!isDamage) { bubble.style.borderColor = '#4a90e2'; bubble.style.color = '#4a90e2'; bubble.style.animation = 'none'; }
                 bubble.innerText = text;
                 this.player.el.appendChild(bubble);
-
                 setTimeout(() => bubble.style.opacity = 1, 10);
-                setTimeout(() => {
-                    bubble.style.opacity = 0;
-                    setTimeout(() => {
-                        if (bubble.parentNode) bubble.remove();
-                        if (this.player.el && !this.player.el.querySelector('.player-bubble')) {
-                            this.player.isBubbleActive = false;
-                        }
-                    }, 300);
-                }, 2000);
+                setTimeout(() => { bubble.style.opacity = 0; setTimeout(() => { bubble.remove(); this.player.isBubbleActive = false; }, 300); }, 2000);
             },
 
-            triggerDamageEffect() {
-                const overlay = document.getElementById('damage-overlay');
-                overlay.style.opacity = 0.7;
-                setTimeout(() => overlay.style.opacity = 0, 150);
-            },
-
-            setInvincible(state, duration = 0, visualEffect = true) {
+            setInvincible(state, duration = 0) {
                 if (this.player.invincibleTimer) clearTimeout(this.player.invincibleTimer);
-                if (!this.player.el) return;
-
                 this.player.invincible = state;
                 if (state) {
-                    if (visualEffect) {
-                        this.player.el.classList.add('invincible');
-                    } else {
-                        this.player.el.classList.remove('invincible');
-                    }
-                    
-                    if (duration > 0) {
-                        this.player.invincibleTimer = setTimeout(() => {
-                            this.player.invincible = false;
-                            if (this.player.el) this.player.el.classList.remove('invincible');
-                        }, duration);
-                    }
-                } else {
-                    this.player.el.classList.remove('invincible');
-                }
+                    this.player.el.classList.add('invincible');
+                    if (duration > 0) this.player.invincibleTimer = setTimeout(() => { this.player.invincible = false; this.player.el.classList.remove('invincible'); }, duration);
+                } else { this.player.el.classList.remove('invincible'); }
             },
 
             updateScoreUI() { document.getElementById('score-val').innerText = this.score; },
@@ -969,26 +798,13 @@
 
             dodge(direction) {
                 if (this.player.isDodging && this.player.dodgeDirection === direction) return;
-                
                 this.player.isDodging = true;
                 this.player.dodgeDirection = direction;
-                
                 this.playRandomDodgeSound();
-
-                this.setInvincible(true, 5000, false);
-
-                if (!this.player.isBubbleActive && Math.random() < 0.1) {
-                    const messages = ["슉!", "슈슉!", "슈슉슉!", "훗!"];
-                    const msg = messages[Math.floor(Math.random() * messages.length)];
-                    this.showPlayerBubble(msg, false);
-                }
-
+                this.setInvincible(true, 400); 
                 const imgList = direction === 'left' ? ASSETS.dodgeLeft : ASSETS.dodgeRight;
                 this.updatePlayerImage(imgList[Math.floor(Math.random() * imgList.length)]);
-
-                const moveAmount = direction === 'left' ? -15 : 15; 
-                this.player.el.style.transform = `translateX(calc(-50% + ${moveAmount}vw))`;
-
+                this.player.el.style.transform = `translateX(calc(-50% + ${(direction === 'left' ? -15 : 15)}vw))`;
                 if (this.player.dodgeTimer) clearTimeout(this.player.dodgeTimer);
                 this.player.dodgeTimer = setTimeout(() => {
                     this.player.isDodging = false;
