@@ -258,7 +258,7 @@
             transform: translateX(-50%);
         }
 
-        /* 주인공 말풍선 위치 조정: 기존 40px에서 추가로 2칸(약 60px) 더 내려 100px로 설정 */
+        /* 주인공 말풍선 위치 조정 */
         .player-bubble {
             top: 100px; 
             left: 50%;
@@ -966,7 +966,22 @@
                 
                 this.playRandomDodgeSound();
 
-                this.setInvincible(true, 5000, false);
+                // 적 체크 로직 추가: 가장 가까운 적(진행률이 가장 높은 적) 찾기
+                let nearestEnemy = null;
+                let maxProgress = -1;
+                this.enemies.forEach(e => {
+                    if (e.progress > maxProgress) {
+                        maxProgress = e.progress;
+                        nearestEnemy = e;
+                    }
+                });
+
+                // 회피 방향이 가장 가까운 적의 위치와 일치하면 무적 판정 부여 안 함
+                if (nearestEnemy && nearestEnemy.side === direction) {
+                    // 무적 부여 안함
+                } else {
+                    this.setInvincible(true, 5000, false);
+                }
 
                 if (!this.player.isBubbleActive && Math.random() < 0.1) {
                     const messages = ["슉!", "슈슉!", "슈슉슉!", "훗!"];
