@@ -131,6 +131,35 @@
             transform: scale(0.95);
         }
 
+        button:disabled {
+            background: #555;
+            cursor: not-allowed;
+            box-shadow: none;
+            opacity: 0.6;
+        }
+
+        /* --- Loading Bar --- */
+        #loading-container {
+            width: 200px;
+            height: 10px;
+            background: #333;
+            border-radius: 5px;
+            margin-top: 20px;
+            overflow: hidden;
+            display: block;
+        }
+        #loading-bar {
+            width: 0%;
+            height: 100%;
+            background: var(--primary-color);
+            transition: width 0.1s;
+        }
+        #loading-text {
+            font-size: 0.8rem;
+            margin-top: 8px;
+            color: #aaa;
+        }
+
         #hud {
             position: absolute;
             top: 0;
@@ -324,7 +353,13 @@
                 좌우 스와이프나 방향키를 사용하여<br>
                 다가오는 사람들의 부담스러운 대화를 피하세요!
             </div>
-            <button onclick="Game.startIntro()">도망치기 시작</button>
+            
+            <button id="start-btn" disabled onclick="Game.startIntro()">로딩 중...</button>
+            
+            <div id="loading-container">
+                <div id="loading-bar"></div>
+            </div>
+            <div id="loading-text">리소스 준비 중... (0%)</div>
         </div>
 
         <div id="intro-screen" class="ui-layer">
@@ -438,16 +473,17 @@
             endingBtnShown: false,
             devClickCount: 0,
 
-            // 오디오 캐싱용 배열
             audioCache: [],
+            assetsToLoad: [],
+            assetsLoaded: 0,
 
             init() {
                 this.worldEl = document.getElementById('world');
                 this.player.el = document.getElementById('player');
-                this.updatePlayerImage(ASSETS.run);
                 
-                // 사운드 리소스 사전 로드
-                this.preloadSounds();
+                // 로딩 리스트 작성
+                this.prepareAssetList();
+                this.loadAllAssets();
 
                 document.addEventListener('touchstart', (e) => { this.touchStartX = e.touches[0].clientX; });
                 document.addEventListener('touchend', (e) => {
@@ -461,27 +497,97 @@
                     if (e.key === 'ArrowLeft') this.dodge('left');
                     else if (e.key === 'ArrowRight') this.dodge('right');
                 });
-
-                this.setRandomBackground();
             },
 
-            preloadSounds() {
-                ASSETS.dodgeSounds.forEach(url => {
-                    const audio = new Audio(url);
-                    audio.load();
-                    this.audioCache.push(audio);
+            prepareAssetList() {
+                // 이미지 모으기
+                this.assetsToLoad.push({ type: 'img', url: ASSETS.run });
+                ASSETS.dodgeLeft.forEach(u => this.assetsToLoad.push({ type: 'img', url: u }));
+                ASSETS.dodgeRight.forEach(u => this.assetsToLoad.push({ type: 'img', url: u }));
+                ASSETS.bg.forEach(u => this.assetsToLoad.push({ type: 'img', url: u }));
+                Object.values(ASSETS.npc).forEach(list => {
+                    list.forEach(u => this.assetsToLoad.push({ type: 'img', url: u }));
                 });
+                // 사운드 모으기
+                ASSETS.dodgeSounds.forEach(u => this.assetsToLoad.push({ type: 'audio', url: u }));
+            },
+
+            loadAllAssets() {
+                const total = this.assetsToLoad.length;
+                if (total === 0) {
+                    this.onAllAssetsLoaded();
+                    return;
+                }
+
+                this.assetsToLoad.forEach(asset => {
+                    if (asset.type === 'img') {
+                        const img = new Image();
+                        img.onload = () => this.assetItemLoaded();
+                        img.onerror = () => this.assetItemLoaded();
+                        img.src = asset.url;
+                    } else if (asset.type === 'audio') {
+                        const audio = new Audio();
+                        audio.oncanplaythrough = () => {
+                            if (!audio.isCounted) {
+                                audio.isCounted = true;
+                                this.assetItemLoaded();
+                            }
+                        };
+                        audio.onerror = () => this.assetItemLoaded();
+                        audio.src = asset.url;
+                        audio.load();
+                        this.audioCache.push({ url: asset.url, audio: audio });
+                    }
+                });
+            },
+
+            assetItemLoaded() {
+                this.assetsLoaded++;
+                const percent = Math.floor((this.assetsLoaded / this.assetsToLoad.length) * 100);
+                document.getElementById('loading-bar').style.width = percent + '%';
+                document.getElementById('loading-text').innerText = `리소스 준비 중... (${percent}%)`;
+                
+                if (this.assetsLoaded >= this.assetsToLoad.length) {
+                    this.onAllAssetsLoaded();
+                }
+            },
+
+            onAllAssetsLoaded() {
+                const btn = document.getElementById('start-btn');
+                btn.disabled = false;
+                btn.innerText = '도망치기 시작';
+                document.getElementById('loading-container').style.display = 'none';
+                document.getElementById('loading-text').innerText = ''; // "준비 완료!" 메시지 미표시
+                
+                this.updatePlayerImage(ASSETS.run);
+                this.setRandomBackground();
             },
 
             playRandomDodgeSound() {
                 if (this.audioCache.length === 0) return;
-                const randomIndex = Math.floor(Math.random() * this.audioCache.length);
-                const originalAudio = this.audioCache[randomIndex];
+
+                let selectedAudioObj;
+                const dodge4Url = toRaw('https://github.com/caxs23/90run/blob/main/dodge%20(4).mp3');
                 
-                // 동시 재생을 위해 복제본 생성
-                const soundClone = originalAudio.cloneNode();
+                // 10% 확률로 dodge(4).mp3 선택 시도
+                if (Math.random() < 0.1) {
+                    selectedAudioObj = this.audioCache.find(obj => obj.url === dodge4Url);
+                }
+
+                // 위 조건에 해당하지 않거나 파일을 못 찾은 경우 나머지 중에서 랜덤 선택
+                if (!selectedAudioObj) {
+                    const others = this.audioCache.filter(obj => obj.url !== dodge4Url);
+                    if (others.length > 0) {
+                        selectedAudioObj = others[Math.floor(Math.random() * others.length)];
+                    } else {
+                        // 혹시 리스트에 (4)만 있는 경우를 위한 폴백
+                        selectedAudioObj = this.audioCache[Math.floor(Math.random() * this.audioCache.length)];
+                    }
+                }
+                
+                const soundClone = selectedAudioObj.audio.cloneNode();
                 soundClone.volume = 0.6;
-                soundClone.play().catch(e => console.log("Audio play blocked by browser policy. Interaction needed first."));
+                soundClone.play().catch(e => console.log("Audio play blocked."));
             },
 
             setRandomBackground() {
@@ -633,10 +739,37 @@
 
             spawnEnemy() {
                 const types = Object.keys(ASSETS.npc);
-                let availableTypes = types.filter(t => t !== this.lastEnemyType);
-                if (availableTypes.length === 0) availableTypes = types;
                 
-                const type = availableTypes[Math.floor(Math.random() * availableTypes.length)];
+                // 가중치를 통한 타입 선택 (ceo, worker는 확률 50% 감소)
+                const weights = {
+                    patient: 1.0,
+                    prof: 1.0,
+                    ceo: 0.5,
+                    worker: 0.5
+                };
+
+                let weightedPool = [];
+                types.forEach(type => {
+                    // 직전 적과 겹치지 않게 필터링
+                    if (type !== this.lastEnemyType) {
+                        const count = weights[type] * 10; // 정수화를 위해 10 곱함
+                        for (let i = 0; i < count; i++) {
+                            weightedPool.push(type);
+                        }
+                    }
+                });
+
+                // 직전 타입 제외하고 풀이 비었으면(불가능하겠지만) 전체에서 선택
+                if (weightedPool.length === 0) {
+                    types.forEach(type => {
+                        const count = weights[type] * 10;
+                        for (let i = 0; i < count; i++) {
+                            weightedPool.push(type);
+                        }
+                    });
+                }
+                
+                const type = weightedPool[Math.floor(Math.random() * weightedPool.length)];
                 this.lastEnemyType = type;
 
                 const imgUrl = ASSETS.npc[type][Math.floor(Math.random() * ASSETS.npc[type].length)];
@@ -840,7 +973,6 @@
                 this.player.isDodging = true;
                 this.player.dodgeDirection = direction;
                 
-                // 회피 사운드 재생
                 this.playRandomDodgeSound();
 
                 this.setInvincible(true, 5000, false);
