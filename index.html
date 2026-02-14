@@ -68,10 +68,10 @@
             flex-direction: column;
             justify-content: center;
             align-items: center;
-            box-sizing: border-box; /* 패딩이 너비에 영향을 주지 않도록 설정 */
+            box-sizing: border-box;
         }
 
-        #title-screen, #game-over-screen, #intro-screen {
+        #title-screen, #game-over-screen, #intro-screen, #ending-screen {
             background: rgba(0, 0, 0, 0.8);
             pointer-events: auto;
             text-align: center;
@@ -159,44 +159,13 @@
             gap: 8px;
             backdrop-filter: blur(5px);
             border: 1px solid rgba(255,255,255,0.1);
+            pointer-events: auto;
         }
 
         #lives-container {
             font-size: 1.4rem;
             margin-top: 5px;
             filter: drop-shadow(0 0 5px rgba(255,0,0,0.5));
-        }
-
-        /* --- Cheers/Message Upgraded --- */
-        #cheer-msg {
-            position: absolute;
-            top: 35%;
-            left: 50%;
-            transform: translate(-50%, -50%) scale(0.5) rotate(-5deg);
-            z-index: 400;
-            opacity: 0;
-            pointer-events: none;
-            transition: all 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-            background: rgba(255, 255, 255, 0.15);
-            backdrop-filter: blur(10px);
-            padding: 15px 40px;
-            border-radius: 20px;
-            border: 2px solid rgba(255, 235, 59, 0.5);
-            box-shadow: 0 10px 30px rgba(0,0,0,0.5), 0 0 20px rgba(255, 235, 59, 0.2);
-        }
-
-        #cheer-msg span {
-            font-size: 2.2rem;
-            font-weight: 900;
-            color: #ffeb3b;
-            text-shadow: 0 0 10px rgba(255, 235, 59, 0.8);
-            display: block;
-            letter-spacing: -1px;
-        }
-
-        #cheer-msg.show {
-            opacity: 1;
-            transform: translate(-50%, -50%) scale(1) rotate(2deg);
         }
 
         /* --- Game Objects --- */
@@ -213,6 +182,12 @@
             background-position: center bottom;
             transition: transform 0.3s cubic-bezier(0.2, 0.8, 0.2, 1);
             filter: drop-shadow(0 10px 30px rgba(0,0,0,0.8));
+        }
+
+        .player-exit {
+            transition: transform 3s ease-in, opacity 3s ease-in !important;
+            transform: translateX(-50%) translateY(-200px) scale(0) !important;
+            opacity: 0;
         }
 
         .enemy {
@@ -271,7 +246,7 @@
             75% { transform: translateX(-50%) rotate(3deg); }
         }
 
-        #game-over-screen {
+        #game-over-screen, #ending-screen {
             display: none;
         }
 
@@ -295,6 +270,24 @@
             100% { opacity: 1; }
         }
 
+        #ending-btn-container {
+            position: fixed;
+            bottom: 30px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 500;
+            display: none;
+        }
+
+        #ending-btn {
+            background: linear-gradient(135deg, #43e97b, #38f9d7);
+            color: #333;
+            padding: 15px 40px;
+            font-size: 1.2rem;
+            border-radius: 30px;
+            box-shadow: 0 0 20px rgba(67, 233, 123, 0.5);
+        }
+
     </style>
 </head>
 <body>
@@ -305,12 +298,11 @@
             <div id="player"></div>
         </div>
         <div id="damage-overlay" class="damage-effect"></div>
-        <div id="cheer-msg"><span></span></div>
 
         <div id="hud" class="ui-layer">
             <div style="display: flex; flex-direction: column; align-items: flex-start; gap: 5px;">
-                <div id="score-board">
-                    <span>🏃 회피:</span>
+                <div id="score-board" onclick="Game.checkDevRoute()">
+                    <span>🏃 피한 대화:</span>
                     <span id="score-val">0</span>
                 </div>
                 <div id="lives-container">
@@ -322,7 +314,10 @@
             </div>
         </div>
 
-        <!-- Title Screen -->
+        <div id="ending-btn-container">
+            <button id="ending-btn" onclick="Game.triggerEndingSequence()">퇴근하기!</button>
+        </div>
+
         <div id="title-screen" class="ui-layer">
             <h1>대화는<br>너무 부담스러워</h1>
             <div class="subtitle">
@@ -332,22 +327,29 @@
             <button onclick="Game.startIntro()">도망치기 시작</button>
         </div>
 
-        <!-- Intro Screen -->
         <div id="intro-screen" class="ui-layer">
             <h2>"나는 극 I이기 때문에 대화가 너무 불편하다!<br>오늘도 사람들을 열심히 피해다녀야지!"</h2>
         </div>
 
-        <!-- Game Over Screen -->
         <div id="game-over-screen" class="ui-layer">
             <h1 style="color: #ff6b6b; font-size: 2.2rem;">결국 붙잡혔다!</h1>
             <div class="subtitle">
                 기를 다 빨렸습니다...<br>
-                결국 1시간 동안 원치 않는 스몰토크를 했습니다.
+                결국 밀려드는 대화에 정신을 잃고 말았습니다..
             </div>
             <div class="subtitle">
                 회피 기록: <span id="final-score" style="color:#ffeb3b; font-weight:bold; font-size: 1.4rem;">0</span>회
             </div>
             <button onclick="Game.restart()">다시 도망가기</button>
+        </div>
+
+        <div id="ending-screen" class="ui-layer">
+            <h1 style="color: #43e97b; font-size: 2.2rem;">오늘도 스테이블하게<br>무사히 퇴근했다!</h1>
+            <div class="subtitle">
+                완벽한 하루였습니다.<br>
+                집에 가서 얼른 침대로 들어가야지!
+            </div>
+            <button onclick="Game.resetToTitle()">다시 시작</button>
         </div>
     </div>
 
@@ -366,6 +368,12 @@
                 toRaw('https://github.com/caxs23/90run/blob/main/right%20(1).png'),
                 toRaw('https://github.com/caxs23/90run/blob/main/right%20(2).png'),
                 toRaw('https://github.com/caxs23/90run/blob/main/right%20(3).png')
+            ],
+            dodgeSounds: [
+                toRaw('https://github.com/caxs23/90run/blob/main/dodge%20(1).mp3'),
+                toRaw('https://github.com/caxs23/90run/blob/main/dodge%20(2).mp3'),
+                toRaw('https://github.com/caxs23/90run/blob/main/dodge%20(3).mp3'),
+                toRaw('https://github.com/caxs23/90run/blob/main/dodge%20(4).mp3')
             ],
             npc: {
                 ceo: [toRaw('https://github.com/caxs23/90run/blob/main/ceo.png')],
@@ -391,14 +399,13 @@
         };
 
         const DIALOGUES = {
-            patient: ["선생님 저 집에 가고 싶어요.", "심심해요. 놀아줘요.", "안아줘요.", "여긴 왜 담배를 못 펴요?", "배 아픈데 변이 안 나와요."],
+            patient: ["선생님 저 집에 가고 싶어요.", "심심해요. 놀아줘요.", "안아줘요.", "여긴 왜 담배를 못 펴요?", "배 아픈데 변이 안 나와요.", "마스크 벗어주세요.", "핸드폰 쓰고싶어요."],
             prof: ["병동은 요즘 어떤가요? 허허.", "새로운 환자를 보내려고 하는데요.", "병동 의견은 어떻습니까?", "수고가 많으시네요.", "회진하다가 한 명 빼먹어서 다시 왔습니다.", "면담은 면담실에서 하겠습니다."],
             ceo: ["다들 수고가 많습니다.", "이곳이 보호병동이군요.", "여기가 90병동입니까?"],
-            worker: ["아-하.", "참치 먹으러 갑시다!", "쭈꾸미 먹으러 갑시다!", "이번에 현대바이오가.."]
+            worker: ["아-하.", "참치 먹으러 갑시다!", "쭈꾸미 먹으러 갑시다!", "이번에 현대바이오가..", "얼른 하고 놉시다!"]
         };
 
         const PLAYER_HURT_DIALOGUES = ["으악 싫어요!", "앗! 부담스러워!", "안돼! 대화당했어!", "살려주세요!", "말 걸지 마세요!"];
-        const CHEER_MESSAGES = ["대단해!", "미쳤다!", "회피의 제왕!", "전설의 아싸!", "신의 경지!", "완벽해!", "우와아아!"];
         const PLAYER_IDLE_DIALOGUES = ["불편한 대화는 사절이야!", "오늘도 스테이블!", "얼른 집에 가야지!"];
 
         const Game = {
@@ -415,24 +422,33 @@
                 dodgeDirection: null,
                 dodgeTimer: null,
                 invincible: false,
-                invincibleTimer: null
+                invincibleTimer: null,
+                isBubbleActive: false
             },
             worldEl: null,
             touchStartX: 0,
             
             lastHurtTime: 0,
-            cheerEl: null,
             lastEnemyType: null,
             lastEnemyDialogue: {}, 
             lastPlayerHurtDialogue: null,
             lastPlayerIdleDialogue: null,
 
+            playStartTime: 0,
+            endingBtnShown: false,
+            devClickCount: 0,
+
+            // 오디오 캐싱용 배열
+            audioCache: [],
+
             init() {
                 this.worldEl = document.getElementById('world');
                 this.player.el = document.getElementById('player');
-                this.cheerEl = document.getElementById('cheer-msg');
                 this.updatePlayerImage(ASSETS.run);
                 
+                // 사운드 리소스 사전 로드
+                this.preloadSounds();
+
                 document.addEventListener('touchstart', (e) => { this.touchStartX = e.touches[0].clientX; });
                 document.addEventListener('touchend', (e) => {
                     if (this.state !== 'playing') return;
@@ -449,6 +465,25 @@
                 this.setRandomBackground();
             },
 
+            preloadSounds() {
+                ASSETS.dodgeSounds.forEach(url => {
+                    const audio = new Audio(url);
+                    audio.load();
+                    this.audioCache.push(audio);
+                });
+            },
+
+            playRandomDodgeSound() {
+                if (this.audioCache.length === 0) return;
+                const randomIndex = Math.floor(Math.random() * this.audioCache.length);
+                const originalAudio = this.audioCache[randomIndex];
+                
+                // 동시 재생을 위해 복제본 생성
+                const soundClone = originalAudio.cloneNode();
+                soundClone.volume = 0.6;
+                soundClone.play().catch(e => console.log("Audio play blocked by browser policy. Interaction needed first."));
+            },
+
             setRandomBackground() {
                 const bgEl = document.getElementById('background');
                 const rand = Math.floor(Math.random() * ASSETS.bg.length);
@@ -456,7 +491,7 @@
             },
 
             updatePlayerImage(src) {
-                this.player.el.style.backgroundImage = `url('${src}')`;
+                if (this.player.el) this.player.el.style.backgroundImage = `url('${src}')`;
             },
 
             startIntro() {
@@ -484,6 +519,9 @@
                 this.enemies = [];
                 this.spawnInterval = 5000 + Math.random() * 1000;
                 this.lastHurtTime = performance.now();
+                this.playStartTime = performance.now();
+                this.endingBtnShown = false;
+                this.devClickCount = 0;
                 
                 this.lastEnemyType = null;
                 this.lastEnemyDialogue = {};
@@ -496,10 +534,15 @@
                 
                 document.getElementById('hud').style.display = 'flex';
                 document.getElementById('game-over-screen').style.display = 'none';
+                document.getElementById('ending-screen').style.display = 'none';
+                document.getElementById('ending-btn-container').style.display = 'none';
+
                 this.worldEl.innerHTML = '<div id="player"></div>';
                 this.player.el = document.getElementById('player');
+                this.player.el.classList.remove('player-exit');
                 this.updatePlayerImage(ASSETS.run);
                 this.player.isDodging = false;
+                this.player.isBubbleActive = false;
                 this.setInvincible(false, 0, false);
                 
                 this.lastFrameTime = performance.now();
@@ -511,6 +554,8 @@
                 document.getElementById('hud').style.display = 'none';
                 document.getElementById('game-over-screen').style.display = 'none';
                 document.getElementById('intro-screen').style.display = 'none';
+                document.getElementById('ending-screen').style.display = 'none';
+                document.getElementById('ending-btn-container').style.display = 'none';
                 document.getElementById('title-screen').style.display = 'flex';
                 this.enemies.forEach(e => e.el.remove());
                 this.enemies = [];
@@ -523,14 +568,51 @@
             gameOver() {
                 this.state = 'gameover';
                 document.getElementById('hud').style.display = 'none';
+                document.getElementById('ending-btn-container').style.display = 'none';
                 document.getElementById('final-score').innerText = this.score;
                 document.getElementById('game-over-screen').style.display = 'flex';
+            },
+
+            checkDevRoute() {
+                if (this.state !== 'playing') return;
+                this.devClickCount++;
+                if (this.devClickCount >= 5) {
+                    this.showEndingButton();
+                }
+            },
+
+            showEndingButton() {
+                if (this.endingBtnShown) return;
+                this.endingBtnShown = true;
+                document.getElementById('ending-btn-container').style.display = 'block';
+            },
+
+            triggerEndingSequence() {
+                this.state = 'ending';
+                document.getElementById('ending-btn-container').style.display = 'none';
+                document.getElementById('hud').style.display = 'none';
+                
+                this.enemies.forEach(e => {
+                    e.el.style.opacity = '0';
+                    setTimeout(() => e.el.remove(), 500);
+                });
+                this.enemies = [];
+
+                this.player.el.classList.add('player-exit');
+
+                setTimeout(() => {
+                    document.getElementById('ending-screen').style.display = 'flex';
+                }, 3000);
             },
 
             gameLoop(timestamp) {
                 if (this.state !== 'playing') return;
                 const deltaTime = timestamp - this.lastFrameTime;
                 this.lastFrameTime = timestamp;
+
+                if (!this.endingBtnShown && timestamp - this.playStartTime > 120000) {
+                    this.showEndingButton();
+                }
 
                 const timeSinceLastHurt = timestamp - this.lastHurtTime;
                 if (timeSinceLastHurt > 15000) {
@@ -622,9 +704,6 @@
                         if(this.state === 'playing') {
                             this.score++;
                             this.updateScoreUI();
-                            if (this.score > 0 && this.score % 10 === 0) {
-                                this.showCheerMessage();
-                            }
                         }
                     }
                 });
@@ -690,8 +769,12 @@
             },
 
             showPlayerBubble(text, isDamage = true) {
+                if (!this.player.el) return;
+                
                 const old = this.player.el.querySelector('.player-bubble');
                 if (old) old.remove();
+
+                this.player.isBubbleActive = true;
 
                 const bubble = document.createElement('div');
                 bubble.className = 'bubble player-bubble';
@@ -706,19 +789,13 @@
                 setTimeout(() => bubble.style.opacity = 1, 10);
                 setTimeout(() => {
                     bubble.style.opacity = 0;
-                    setTimeout(() => bubble.remove(), 300);
+                    setTimeout(() => {
+                        if (bubble.parentNode) bubble.remove();
+                        if (this.player.el && !this.player.el.querySelector('.player-bubble')) {
+                            this.player.isBubbleActive = false;
+                        }
+                    }, 300);
                 }, 2000);
-            },
-
-            showCheerMessage() {
-                const msg = CHEER_MESSAGES[Math.floor(Math.random() * CHEER_MESSAGES.length)];
-                const span = this.cheerEl.querySelector('span');
-                span.innerText = msg;
-                this.cheerEl.classList.add('show');
-                
-                setTimeout(() => {
-                    this.cheerEl.classList.remove('show');
-                }, 1800);
             },
 
             triggerDamageEffect() {
@@ -729,7 +806,8 @@
 
             setInvincible(state, duration = 0, visualEffect = true) {
                 if (this.player.invincibleTimer) clearTimeout(this.player.invincibleTimer);
-                
+                if (!this.player.el) return;
+
                 this.player.invincible = state;
                 if (state) {
                     if (visualEffect) {
@@ -741,7 +819,7 @@
                     if (duration > 0) {
                         this.player.invincibleTimer = setTimeout(() => {
                             this.player.invincible = false;
-                            this.player.el.classList.remove('invincible');
+                            if (this.player.el) this.player.el.classList.remove('invincible');
                         }, duration);
                     }
                 } else {
@@ -762,7 +840,16 @@
                 this.player.isDodging = true;
                 this.player.dodgeDirection = direction;
                 
+                // 회피 사운드 재생
+                this.playRandomDodgeSound();
+
                 this.setInvincible(true, 5000, false);
+
+                if (!this.player.isBubbleActive && Math.random() < 0.1) {
+                    const messages = ["슉!", "슈슉!", "슈슉슉!", "훗!"];
+                    const msg = messages[Math.floor(Math.random() * messages.length)];
+                    this.showPlayerBubble(msg, false);
+                }
 
                 const imgList = direction === 'left' ? ASSETS.dodgeLeft : ASSETS.dodgeRight;
                 this.updatePlayerImage(imgList[Math.floor(Math.random() * imgList.length)]);
@@ -775,7 +862,7 @@
                     this.player.isDodging = false;
                     this.player.dodgeDirection = null;
                     this.updatePlayerImage(ASSETS.run);
-                    this.player.el.style.transform = `translateX(-50%)`;
+                    if (this.player.el) this.player.el.style.transform = `translateX(-50%)`;
                 }, 700);
             }
         };
